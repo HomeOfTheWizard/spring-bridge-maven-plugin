@@ -4,10 +4,14 @@ import org.burningwave.core.assembler.ComponentContainer;
 import org.burningwave.core.classes.*;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.PropertySource;
 
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Provider;
+import java.io.File;
 import java.lang.reflect.Modifier;
 import java.nio.file.Path;
 import java.util.List;
@@ -15,7 +19,9 @@ import java.util.stream.Collectors;
 
 public class ProviderGenerator {
 
-    public static void generateBeansProviders(Path sourcePath, String packageName, Class beanClass) {
+    private static final String SPRING_CONFIG_CLASSNAME = "GeneratedSpringConfig";
+
+    public static void generateBeansProviders(Path sourcePath, String packageName, Class<?> beanClass) {
         var unitSG = UnitSourceGenerator.create(packageName);
         unitSG.addClass(
             ClassSourceGenerator.create(
@@ -47,17 +53,6 @@ public class ProviderGenerator {
         var componentContainer = ComponentContainer.getInstance();
         var classFactory = componentContainer.getClassFactory();
         classFactory.loadOrBuildAndDefine(unitSG);
-
-//        JavaMemoryCompiler javaMemoryCompiler = componentContainer.getJavaMemoryCompiler();
-//        QueuedTaskExecutor.ProducerTask<JavaMemoryCompiler.Compilation.Result> compilationTask = javaMemoryCompiler.compile(
-//                JavaMemoryCompiler.Compilation.Config.forUnitSourceGenerator(
-//                                unitSG
-//                        )
-//                        .storeCompiledClassesTo(
-//                                buildPath.toAbsolutePath().toString()
-//                        )
-//        );
-//        JavaMemoryCompiler.Compilation.Result compilattionResult = compilationTask.join();
     }
 
     public static void generateSpringContextProvider(Path sourcePath, String packageName, List<? extends Class<?>> componentClasses){
@@ -72,11 +67,7 @@ public class ProviderGenerator {
                                         TypeDeclarationSourceGenerator.create(ApplicationContext.class)
                                 )
                                 .addModifier(Modifier.PUBLIC)
-                                .addBodyCodeLine("return new AnnotationConfigApplicationContext(" +
-                                        componentClasses.stream()
-                                                .map(Class::getSimpleName)
-                                                .map(name -> name + ".class")
-                                                .collect(Collectors.joining(",")) + ");"
+                                .addBodyCodeLine("return new AnnotationConfigApplicationContext( "+SPRING_CONFIG_CLASSNAME+".class );"
                                 )
                                 .useType(AnnotationConfigApplicationContext.class)
                                 .useType(componentClasses.toArray(new Class[0]))
@@ -87,5 +78,34 @@ public class ProviderGenerator {
         var componentContainer = ComponentContainer.getInstance();
         var classFactory = componentContainer.getClassFactory();
         classFactory.loadOrBuildAndDefine(unitSG);
+    }
+
+    public static void generateSpringConfig(Path sourcePath, String packageName, List<? extends Class<?>> configClasses, File applicationPropertiesFile) {
+        var unitSG = UnitSourceGenerator.create(packageName);
+        unitSG.addClass(
+                ClassSourceGenerator.create(TypeDeclarationSourceGenerator.create(SPRING_CONFIG_CLASSNAME))
+                        .addModifier(Modifier.PUBLIC)
+                        .addAnnotation(AnnotationSourceGenerator.create(Configuration.class))
+                        .addAnnotation(AnnotationSourceGenerator.create(PropertySource.class).addParameter("value", true,
+                                VariableSourceGenerator.create(
+                                        "\"" + applicationPropertiesFile.getName() + "\"")
+                        ))
+                        .addAnnotation(AnnotationSourceGenerator.create(Import.class).addParameter("value", true,
+                                VariableSourceGenerator.create(
+                                        getSimpleClassesNamesString(configClasses) )
+                        ))
+        ).addImport(configClasses.toArray(new Class<?>[0]));
+        unitSG.storeToClassPath(sourcePath.toAbsolutePath().toString());
+
+        var componentContainer = ComponentContainer.getInstance();
+        var classFactory = componentContainer.getClassFactory();
+        classFactory.loadOrBuildAndDefine(unitSG);
+    }
+
+    private static String getSimpleClassesNamesString(List<? extends Class<?>> componentClasses) {
+        return componentClasses.stream()
+                .map(Class::getSimpleName)
+                .map(name -> name + ".class")
+                .collect(Collectors.joining(","));
     }
 }
