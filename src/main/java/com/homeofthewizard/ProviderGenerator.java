@@ -21,7 +21,7 @@ public class ProviderGenerator {
 
     private static final String SPRING_CONFIG_CLASSNAME = "GeneratedSpringConfig";
 
-    public static void generateBeansProviders(Path sourcePath, String packageName, Class<?> beanClass) {
+    public static void generateBeansProviders(Path sourcePath, String packageName, Class<?> beanClass, List<String> runtimeClasspathElements) {
         var unitSG = UnitSourceGenerator.create(packageName);
         unitSG.addClass(
             ClassSourceGenerator.create(
@@ -50,12 +50,21 @@ public class ProviderGenerator {
         );
         unitSG.storeToClassPath(sourcePath.toAbsolutePath().toString());
 
-        var componentContainer = ComponentContainer.getInstance();
-        var classFactory = componentContainer.getClassFactory();
-        classFactory.loadOrBuildAndDefine(unitSG);
+//        var componentContainer = ComponentContainer.getInstance();
+//        var javaMemoryCompiler = componentContainer.getJavaMemoryCompiler();
+//        var compilationTask = javaMemoryCompiler.compile(
+//                JavaMemoryCompiler.Compilation.Config.forUnitSourceGenerator(
+//                                unitSG
+//                        )
+//                        .addClassPaths(runtimeClasspathElements)
+//                        .storeCompiledClassesTo(
+//                                sourcePath.toAbsolutePath().toString()
+//                        )
+//        );
+//        compilationTask.join();
     }
 
-    public static void generateSpringContextProvider(Path sourcePath, String packageName, List<? extends Class<?>> componentClasses){
+    public static void generateSpringContextProvider(Path sourcePath, String packageName, List<? extends Class<?>> componentClasses, List<String> runtimeClasspathElements){
         var unitSG = UnitSourceGenerator.create(packageName);
         unitSG.addClass(
                 ClassSourceGenerator.create(TypeDeclarationSourceGenerator.create("SpringContextProvider"))
@@ -75,21 +84,30 @@ public class ProviderGenerator {
         );
         unitSG.storeToClassPath(sourcePath.toAbsolutePath().toString());
 
-        var componentContainer = ComponentContainer.getInstance();
-        var classFactory = componentContainer.getClassFactory();
-        classFactory.loadOrBuildAndDefine(unitSG);
+//        var componentContainer = ComponentContainer.getInstance();
+//        var javaMemoryCompiler = componentContainer.getJavaMemoryCompiler();
+//        var compilationTask = javaMemoryCompiler.compile(
+//                JavaMemoryCompiler.Compilation.Config.forUnitSourceGenerator(
+//                                unitSG
+//                        )
+//                        .addClassPaths(runtimeClasspathElements)
+//                        .storeCompiledClassesTo(
+//                                sourcePath.toAbsolutePath().toString()
+//                        )
+//        );
+//        compilationTask.join();
     }
 
-    public static void generateSpringConfig(Path sourcePath, String packageName, List<? extends Class<?>> configClasses, File applicationPropertiesFile) {
+    public static void generateSpringConfig(Path sourcePath, String packageName, List<? extends Class<?>> configClasses, File applicationPropertiesFile, List<String> runtimeClasspathElements) {
         var unitSG = UnitSourceGenerator.create(packageName);
         unitSG.addClass(
                 ClassSourceGenerator.create(TypeDeclarationSourceGenerator.create(SPRING_CONFIG_CLASSNAME))
                         .addModifier(Modifier.PUBLIC)
                         .addAnnotation(AnnotationSourceGenerator.create(Configuration.class))
-                        .addAnnotation(AnnotationSourceGenerator.create(PropertySource.class).addParameter("value", true,
-                                VariableSourceGenerator.create(
-                                        "\"" + applicationPropertiesFile.getName() + "\"")
-                        ))
+                        .addAnnotation(AnnotationSourceGenerator.create(PropertySource.class)
+                                .addParameter("value", true, VariableSourceGenerator.create("\"" + applicationPropertiesFile.getName() + "\""))
+                                .addParameter("ignoreResourceNotFound", false, VariableSourceGenerator.create("true"))
+                        )
                         .addAnnotation(AnnotationSourceGenerator.create(Import.class).addParameter("value", true,
                                 VariableSourceGenerator.create(
                                         getSimpleClassesNamesString(configClasses) )
@@ -97,9 +115,18 @@ public class ProviderGenerator {
         ).addImport(configClasses.toArray(new Class<?>[0]));
         unitSG.storeToClassPath(sourcePath.toAbsolutePath().toString());
 
-        var componentContainer = ComponentContainer.getInstance();
-        var classFactory = componentContainer.getClassFactory();
-        classFactory.loadOrBuildAndDefine(unitSG);
+//        var componentContainer = ComponentContainer.getInstance();
+//        var javaMemoryCompiler = componentContainer.getJavaMemoryCompiler();
+//        var compilationTask = javaMemoryCompiler.compile(
+//                JavaMemoryCompiler.Compilation.Config.forUnitSourceGenerator(
+//                                unitSG
+//                        )
+//                        .addClassPaths(runtimeClasspathElements)
+//                        .storeCompiledClassesTo(
+//                                sourcePath.toAbsolutePath().toString()
+//                        )
+//        );
+//        compilationTask.join();
     }
 
     private static String getSimpleClassesNamesString(List<? extends Class<?>> componentClasses) {

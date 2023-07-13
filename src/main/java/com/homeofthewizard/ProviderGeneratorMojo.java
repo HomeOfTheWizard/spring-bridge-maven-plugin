@@ -1,11 +1,13 @@
 package com.homeofthewizard;
 
+import org.apache.maven.artifact.DependencyResolutionRequiredException;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.core.io.FileSystemResource;
@@ -15,11 +17,16 @@ import org.springframework.util.ClassUtils;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Modifier;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
-@Mojo( name = "generate", defaultPhase = LifecyclePhase.PROCESS_RESOURCES)
+@Mojo( name = "generate", defaultPhase = LifecyclePhase.PREPARE_PACKAGE, requiresDependencyResolution = ResolutionScope.TEST)
 public class ProviderGeneratorMojo extends AbstractMojo {
 
     @Parameter(property = "project", readonly = true)
@@ -28,17 +35,21 @@ public class ProviderGeneratorMojo extends AbstractMojo {
     @Parameter(defaultValue = "${project.build.sourceDirectory}", property = "generated.providers.source.path")
     private File generatedProvidersSourcePath;
 
+    @Parameter(defaultValue = "${project.build.outputDirectory}", property = "generated.providers.output.path")
+    private File generatedProvidersClassPath;
+
     @Parameter(property = "componentClasses")
     private String[] componentClassesFilter = new String[0];
 
     @Parameter(required = true, property = "contextConfigClasses")
     private String[] contextConfigClasses;
 
-    @Parameter(required = true, property = "applicationPropertiesFile")
+    @Parameter(property = "applicationPropertiesFile", defaultValue = "${project.basedir}/src/main/resources/application.properties")
     private File applicationPropertiesFile;
 
     @Override
     public void execute() throws MojoExecutionException{
+        setClassPath();
 
         var basePackages = project.getDependencies().stream().map(Dependency::getGroupId).collect(Collectors.toList());
         var configClasses = Arrays.stream(contextConfigClasses).map(this::getClassFromName).collect(Collectors.toList());
@@ -47,42 +58,64 @@ public class ProviderGeneratorMojo extends AbstractMojo {
         var allBeanClasses = buildSpringContextAndGetBeanClasses(configClasses, applicationPropertiesFile);
 
         generateProvidersForBeans(basePackages, beanClassesFilter, allBeanClasses);
-        generateSpringConfig(configClasses, applicationPropertiesFile);
-        generateProviderForSpringContext(configClasses);
+        try {
+            generateSpringConfig(configClasses, applicationPropertiesFile);
+        } catch (DependencyResolutionRequiredException e) {
+            throw new RuntimeException(e);
+        }
+        try {
+            generateProviderForSpringContext(configClasses);
+        } catch (DependencyResolutionRequiredException e) {
+            throw new RuntimeException(e);
+        }
 
     }
 
-    private void generateSpringConfig(List<? extends Class<?>> configClasses, File applicationPropertiesFile) {
+    private void generateSpringConfig(List<? extends Class<?>> configClasses, File applicationPropertiesFile) throws DependencyResolutionRequiredException {
         ProviderGenerator.generateSpringConfig(
                 generatedProvidersSourcePath.toPath(),
+//                generatedProvidersClassPath.toPath(),
                 project.getGroupId(),
                 configClasses,
-                applicationPropertiesFile
+                applicationPropertiesFile,
+                project.getRuntimeClasspathElements()
         );
     }
 
-    private void generateProviderForSpringContext(List<? extends Class<?>> configClasses) {
+    private void generateProviderForSpringContext(List<? extends Class<?>> configClasses) throws DependencyResolutionRequiredException {
         ProviderGenerator.generateSpringContextProvider(
                 generatedProvidersSourcePath.toPath(),
+//                generatedProvidersClassPath.toPath(),
                 project.getGroupId(),
-                configClasses
+                configClasses,
+                project.getRuntimeClasspathElements()
         );
     }
 
     private void generateProvidersForBeans(List<String> basePackages, List<? extends Class<?>> beanClassesFilter, List<Class<?>> allBeanClasses) {
         allBeanClasses.stream()
                 .filter( beanClass -> isPartOfLibrary(beanClass, basePackages) && passThroughFilters(beanClass, beanClassesFilter) )
-                .forEach( beanClass -> ProviderGenerator.generateBeansProviders(
-                        generatedProvidersSourcePath.toPath(),
-                        project.getGroupId(),
-                        beanClass
-                ));
+                .forEach( beanClass -> {
+                    try {
+                        ProviderGenerator.generateBeansProviders(
+//                                generatedProvidersClassPath.toPath(),
+                                generatedProvidersSourcePath.toPath(),
+                                project.getGroupId(),
+                                beanClass,
+                                project.getRuntimeClasspathElements()
+                        );
+                    } catch (DependencyResolutionRequiredException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
     }
 
     private List<Class<?>> buildSpringContextAndGetBeanClasses(List<? extends Class<?>> configClasses, File applicationPropertiesFile) throws MojoExecutionException {
-        var resourcePropertyFile = createResourceFromPropertyFile(applicationPropertiesFile);
         var applicationContext = new AnnotationConfigApplicationContext();
-        applicationContext.getEnvironment().getPropertySources().addFirst(resourcePropertyFile);
+        if(applicationPropertiesFile.exists()) {
+            var resourcePropertyFile = createResourceFromPropertyFile(applicationPropertiesFile);
+            applicationContext.getEnvironment().getPropertySources().addFirst(resourcePropertyFile);
+        }
         applicationContext.register(configClasses.toArray(new Class[0]));
         applicationContext.refresh();
 
@@ -115,6 +148,31 @@ public class ProviderGeneratorMojo extends AbstractMojo {
         try {
             return Class.forName(className);
         } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void setClassPath(){
+        try {
+            Set<URL> urls = new HashSet<>();
+            List<String> elements = project.getRuntimeClasspathElements();
+            //getTestClasspathElements();
+            //getRuntimeClasspathElements()
+            //getCompileClasspathElements()
+            //getSystemClasspathElements()
+            for (String element : elements) {
+                urls.add(new File(element).toURI().toURL());
+            }
+
+            ClassLoader contextClassLoader = URLClassLoader.newInstance(
+                    urls.toArray(new URL[0]),
+                    Thread.currentThread().getContextClassLoader());
+
+            Thread.currentThread().setContextClassLoader(contextClassLoader);
+
+        } catch (DependencyResolutionRequiredException e) {
+            throw new RuntimeException(e);
+        } catch (MalformedURLException e) {
             throw new RuntimeException(e);
         }
     }
