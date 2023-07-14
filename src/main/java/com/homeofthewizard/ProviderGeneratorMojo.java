@@ -27,7 +27,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-@Mojo( name = "generate", defaultPhase = LifecyclePhase.PREPARE_PACKAGE, requiresDependencyResolution = ResolutionScope.TEST)
+@Mojo( name = "generate", defaultPhase = LifecyclePhase.COMPILE, requiresDependencyResolution = ResolutionScope.TEST)
 public class ProviderGeneratorMojo extends AbstractMojo {
 
     @Parameter(property = "project", readonly = true)
@@ -74,8 +74,8 @@ public class ProviderGeneratorMojo extends AbstractMojo {
 
     private void generateSpringConfig(List<? extends Class<?>> configClasses, File applicationPropertiesFile) throws DependencyResolutionRequiredException {
         ProviderGenerator.generateSpringConfig(
-                generatedProvidersSourcePath.toPath(),
-//                generatedProvidersClassPath.toPath(),
+//                generatedProvidersSourcePath.toPath(),
+                generatedProvidersClassPath.toPath(),
                 project.getGroupId(),
                 configClasses,
                 applicationPropertiesFile,
@@ -85,8 +85,8 @@ public class ProviderGeneratorMojo extends AbstractMojo {
 
     private void generateProviderForSpringContext(List<? extends Class<?>> configClasses) throws DependencyResolutionRequiredException {
         ProviderGenerator.generateSpringContextProvider(
-                generatedProvidersSourcePath.toPath(),
-//                generatedProvidersClassPath.toPath(),
+//                generatedProvidersSourcePath.toPath(),
+                generatedProvidersClassPath.toPath(),
                 project.getGroupId(),
                 configClasses,
                 project.getRuntimeClasspathElements()
@@ -98,8 +98,8 @@ public class ProviderGeneratorMojo extends AbstractMojo {
                 .forEach( beanClass -> {
                     try {
                         ProviderGenerator.generateBeansProviders(
-//                                generatedProvidersClassPath.toPath(),
-                                generatedProvidersSourcePath.toPath(),
+                                generatedProvidersClassPath.toPath(),
+//                                generatedProvidersSourcePath.toPath(),
                                 project.getGroupId(),
                                 beanClass,
                                 project.getRuntimeClasspathElements()
