@@ -146,7 +146,7 @@ public class ProviderGeneratorMojo extends AbstractMojo {
 
     private Class<?> getClassFromName(String className) {
         try {
-            return Class.forName(className);
+            return Thread.currentThread().getContextClassLoader().loadClass(className);
         } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
@@ -156,6 +156,8 @@ public class ProviderGeneratorMojo extends AbstractMojo {
         try {
             Set<URL> urls = new HashSet<>();
             List<String> elements = project.getRuntimeClasspathElements();
+            elements.addAll(project.getCompileClasspathElements());
+            elements.addAll(project.getTestClasspathElements());
             //getTestClasspathElements();
             //getRuntimeClasspathElements()
             //getCompileClasspathElements()
