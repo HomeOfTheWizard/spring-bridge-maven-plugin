@@ -25,6 +25,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Mojo( name = "generate", defaultPhase = LifecyclePhase.PREPARE_PACKAGE, requiresDependencyResolution = ResolutionScope.TEST)
 public class ProviderGeneratorMojo extends AbstractMojo {
@@ -55,9 +56,9 @@ public class ProviderGeneratorMojo extends AbstractMojo {
         var configClasses = Arrays.stream(contextConfigClasses).map(this::getClassFromName).collect(Collectors.toList());
         var beanClassesFilter = Arrays.stream(componentClassesFilter).map(this::getClassFromName).collect(Collectors.toList());
 
-        var allBeanClasses = buildSpringContextAndGetBeanClasses(configClasses, applicationPropertiesFile);
+        var allBeanClasses = buildSpringContextAndGetBeanClasses(configClasses, applicationPropertiesFile, beanClassesFilter, basePackages);
 
-        generateProvidersForBeans(basePackages, beanClassesFilter, allBeanClasses);
+        generateProvidersForBeans(allBeanClasses);
         try {
             generateSpringConfig(configClasses, applicationPropertiesFile);
         } catch (DependencyResolutionRequiredException e) {
@@ -92,9 +93,8 @@ public class ProviderGeneratorMojo extends AbstractMojo {
         );
     }
 
-    private void generateProvidersForBeans(List<String> basePackages, List<? extends Class<?>> beanClassesFilter, List<Class<?>> allBeanClasses) {
+    private void generateProvidersForBeans(List<Class<?>> allBeanClasses) {
         allBeanClasses.stream()
-                .filter( beanClass -> isPartOfLibrary(beanClass, basePackages) && passThroughFilters(beanClass, beanClassesFilter) )
                 .forEach( beanClass -> {
                     try {
                         ProviderGenerator.generateBeansProviders(
@@ -110,7 +110,7 @@ public class ProviderGeneratorMojo extends AbstractMojo {
                 });
     }
 
-    private List<Class<?>> buildSpringContextAndGetBeanClasses(List<? extends Class<?>> configClasses, File applicationPropertiesFile) throws MojoExecutionException {
+    private List<Class<?>> buildSpringContextAndGetBeanClasses(List<? extends Class<?>> configClasses, File applicationPropertiesFile, List<? extends Class<?>> beanClassesFilter, List<String> basePackages) throws MojoExecutionException {
         var applicationContext = new AnnotationConfigApplicationContext();
         if(applicationPropertiesFile.exists()) {
             var resourcePropertyFile = createResourceFromPropertyFile(applicationPropertiesFile);
@@ -119,16 +119,19 @@ public class ProviderGeneratorMojo extends AbstractMojo {
         applicationContext.register(configClasses.toArray(new Class[0]));
         applicationContext.refresh();
 
-        return Arrays.stream(applicationContext.getBeanDefinitionNames())
-                .map(applicationContext::getBean)
+        var beansStream = beanClassesFilter.isEmpty()
+                ? Arrays.stream(applicationContext.getBeanDefinitionNames()).map(applicationContext::getBean)
+                : beanClassesFilter.stream().map(applicationContext::getBean);
+
+        return beansStream
                 .map(Object::getClass)
+                .filter( beanClass -> isPartOfLibrary(beanClass, basePackages) && passThroughFilters(beanClass, beanClassesFilter) )
                 .collect(Collectors.toList());
     }
 
     private boolean passThroughFilters(Class<?> beanClass, List<? extends Class<?>> beanClassesFilter) {
         if (!Modifier.isPublic(beanClass.getModifiers())) return false;
         if (beanClass.getName().contains(ClassUtils.CGLIB_CLASS_SEPARATOR)) return false;
-        if (!beanClassesFilter.isEmpty()) return beanClassesFilter.contains(beanClass);
         return true;
     }
 
@@ -158,10 +161,7 @@ public class ProviderGeneratorMojo extends AbstractMojo {
             List<String> elements = project.getRuntimeClasspathElements();
             elements.addAll(project.getCompileClasspathElements());
             elements.addAll(project.getTestClasspathElements());
-            //getTestClasspathElements();
-            //getRuntimeClasspathElements()
-            //getCompileClasspathElements()
-            //getSystemClasspathElements()
+
             for (String element : elements) {
                 urls.add(new File(element).toURI().toURL());
             }
