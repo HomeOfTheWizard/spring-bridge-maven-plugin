@@ -43,6 +43,12 @@
             <scope>provided</scope>
         </dependency>
 
+        <dependency>
+            <groupId>org.twdata.maven</groupId>
+            <artifactId>mojo-executor</artifactId>
+            <version>2.4.1-m2</version>
+        </dependency>
+
         <!-- Spring container and bean support -->
         <dependency>
             <groupId>org.springframework</groupId>

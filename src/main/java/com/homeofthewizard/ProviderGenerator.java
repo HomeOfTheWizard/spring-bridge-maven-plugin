@@ -1,6 +1,5 @@
 package com.homeofthewizard;
 
-import org.burningwave.core.assembler.ComponentContainer;
 import org.burningwave.core.classes.*;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
@@ -21,7 +20,7 @@ public class ProviderGenerator {
 
     private static final String SPRING_CONFIG_CLASSNAME = "GeneratedSpringConfig";
 
-    public static void generateBeansProviders(Path sourcePath, String packageName, Class<?> beanClass, List<String> runtimeClasspathElements) {
+    public static void generateBeansProviders(Path sourcePath, String packageName, Class<?> beanClass) {
         var unitSG = UnitSourceGenerator.create(packageName);
         unitSG.addClass(
             ClassSourceGenerator.create(
@@ -48,23 +47,10 @@ public class ProviderGenerator {
                             .useType(beanClass)
                     )
         );
-//        unitSG.storeToClassPath(sourcePath.toAbsolutePath().toString());
-
-        var componentContainer = ComponentContainer.getInstance();
-        var javaMemoryCompiler = componentContainer.getJavaMemoryCompiler();
-        var compilationTask = javaMemoryCompiler.compile(
-                JavaMemoryCompiler.Compilation.Config.forUnitSourceGenerator(
-                                unitSG
-                        )
-                        .addClassPaths(runtimeClasspathElements)
-                        .storeCompiledClassesTo(
-                                sourcePath.toAbsolutePath().toString()
-                        )
-        );
-        compilationTask.join();
+        unitSG.storeToClassPath(sourcePath.toAbsolutePath().toString());
     }
 
-    public static void generateSpringContextProvider(Path sourcePath, String packageName, List<? extends Class<?>> componentClasses, List<String> runtimeClasspathElements){
+    public static void generateSpringContextProvider(Path sourcePath, String packageName, List<? extends Class<?>> componentClasses){
         var unitSG = UnitSourceGenerator.create(packageName);
         unitSG.addClass(
                 ClassSourceGenerator.create(TypeDeclarationSourceGenerator.create("SpringContextProvider"))
@@ -82,23 +68,10 @@ public class ProviderGenerator {
                                 .useType(componentClasses.toArray(new Class[0]))
                         )
         );
-//        unitSG.storeToClassPath(sourcePath.toAbsolutePath().toString());
-
-        var componentContainer = ComponentContainer.getInstance();
-        var javaMemoryCompiler = componentContainer.getJavaMemoryCompiler();
-        var compilationTask = javaMemoryCompiler.compile(
-                JavaMemoryCompiler.Compilation.Config.forUnitSourceGenerator(
-                                unitSG
-                        )
-                        .addClassPaths(runtimeClasspathElements)
-                        .storeCompiledClassesTo(
-                                sourcePath.toAbsolutePath().toString()
-                        )
-        );
-        compilationTask.join();
+        unitSG.storeToClassPath(sourcePath.toAbsolutePath().toString());
     }
 
-    public static void generateSpringConfig(Path sourcePath, String packageName, List<? extends Class<?>> configClasses, File applicationPropertiesFile, List<String> runtimeClasspathElements) {
+    public static void generateSpringConfig(Path sourcePath, String packageName, List<? extends Class<?>> configClasses, File applicationPropertiesFile) {
         var unitSG = UnitSourceGenerator.create(packageName);
         unitSG.addClass(
                 ClassSourceGenerator.create(TypeDeclarationSourceGenerator.create(SPRING_CONFIG_CLASSNAME))
@@ -113,20 +86,7 @@ public class ProviderGenerator {
                                         getSimpleClassesNamesString(configClasses) )
                         ))
         ).addImport(configClasses.toArray(new Class<?>[0]));
-//        unitSG.storeToClassPath(sourcePath.toAbsolutePath().toString());
-
-        var componentContainer = ComponentContainer.getInstance();
-        var javaMemoryCompiler = componentContainer.getJavaMemoryCompiler();
-        var compilationTask = javaMemoryCompiler.compile(
-                JavaMemoryCompiler.Compilation.Config.forUnitSourceGenerator(
-                                unitSG
-                        )
-                        .addClassPaths(runtimeClasspathElements)
-                        .storeCompiledClassesTo(
-                                sourcePath.toAbsolutePath().toString()
-                        )
-        );
-        compilationTask.join();
+        unitSG.storeToClassPath(sourcePath.toAbsolutePath().toString());
     }
 
     private static String getSimpleClassesNamesString(List<? extends Class<?>> componentClasses) {
