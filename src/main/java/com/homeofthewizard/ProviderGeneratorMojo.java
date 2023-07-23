@@ -8,15 +8,9 @@ import org.apache.maven.plugin.BuildPluginManager;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.*;
 import org.apache.maven.project.MavenProject;
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.support.ResourcePropertySource;
-import org.springframework.util.ClassUtils;
 
 import javax.inject.Inject;
 import java.io.File;
-import java.io.IOException;
-import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -30,43 +24,67 @@ import static org.twdata.maven.mojoexecutor.MojoExecutor.*;
 @Mojo( name = "generate", defaultPhase = LifecyclePhase.COMPILE, requiresDependencyResolution = ResolutionScope.TEST)
 public class ProviderGeneratorMojo extends AbstractMojo {
 
-    @Parameter(property = "project", readonly = true)
-    private MavenProject project;
+    private static final String GENERATION_PATH = "${project.build.directory}/generated-sources";
 
-    @Parameter( defaultValue = "${session}", readonly = true)
+    private MavenProject project;
     private MavenSession session;
+    private String[] componentClassesFilter = new String[0];
+    private String[] contextConfigClasses;
+    private File applicationPropertiesFile;
+    private File outputDir;
+    private final BuildPluginManager pluginManager;
+    private final SpringHelper springHelper;
+    private final ProviderGenerator generator;
 
     @Inject
-    private BuildPluginManager pluginManager;
+    public ProviderGeneratorMojo(SpringHelper springHelper, BuildPluginManager buildPluginManager, ProviderGenerator providerGenerator){
+        this.pluginManager = buildPluginManager;
+        this.springHelper = springHelper;
+        this.generator = providerGenerator;
+    }
 
-    @Parameter(property = "componentClasses")
-    private String[] componentClassesFilter = new String[0];
+    @Parameter(property = "project", readonly = true)
+    public void setProject(MavenProject project){
+        this.project=project;
+    }
+
+    @Parameter(property = "session", readonly = true)
+    public void setSession(MavenSession session){
+        this.session=session;
+    }
+
+    @Parameter(property = "componentClassesFilter")
+    public void setComponentClassesFilter(String[] componentClassesFilter){
+        this.componentClassesFilter=componentClassesFilter;
+    }
 
     @Parameter(required = true, property = "contextConfigClasses")
-    private String[] contextConfigClasses;
+    public void setContextConfigClasses(String[] contextConfigClasses){
+        this.contextConfigClasses = contextConfigClasses;
+    }
 
     @Parameter(property = "applicationPropertiesFile", defaultValue = "${project.basedir}/src/main/resources/application.properties")
-    private File applicationPropertiesFile;
+    public void setApplicationPropertiesFile(File applicationPropertiesFile){
+        this.applicationPropertiesFile=applicationPropertiesFile;
+    }
 
-    @Parameter(defaultValue = "${project.build.directory}/generated-sources", required = true)
-    private File outputDir;
+    @Parameter(defaultValue = GENERATION_PATH, required = true)
+    public void setOutputDir(File outputDir){
+        this.outputDir = outputDir;
+    }
 
     @Override
     public void execute() throws MojoExecutionException{
         setClassPath();
 
-        var basePackages = project.getDependencies().stream().map(Dependency::getGroupId).collect(Collectors.toList());
-        var configClasses = Arrays.stream(contextConfigClasses).map(this::getClassFromName).collect(Collectors.toList());
-        var beanClassesFilter = Arrays.stream(componentClassesFilter).map(this::getClassFromName).collect(Collectors.toList());
+        var basePackages = getSpringLibsBasePackages();
+        var configClasses = parseClassNameArray(contextConfigClasses);
+        var beanClassesFilter = parseClassNameArray(componentClassesFilter);
 
-        var beanClasses = buildSpringContextAndGetBeanClasses(configClasses, beanClassesFilter, basePackages, applicationPropertiesFile);
+        var beanClasses = springHelper.buildSpringContextAndGetBeanClasses(configClasses, beanClassesFilter, basePackages, applicationPropertiesFile);
 
-        generateProvidersForBeans(beanClasses);
-        generateSpringConfig(configClasses, applicationPropertiesFile);
-        generateProviderForSpringContext(configClasses);
-
+        generateClasses(configClasses, beanClasses);
         compileGeneratedClasses();
-
     }
 
     private void setClassPath() throws MojoExecutionException {
@@ -91,72 +109,28 @@ public class ProviderGeneratorMojo extends AbstractMojo {
         }
     }
 
+    private List<String> getSpringLibsBasePackages() {
+        return project.getDependencies().stream().map(Dependency::getGroupId).collect(Collectors.toList());
+    }
+
+    private List<? extends Class<?>> parseClassNameArray(String[] classes) {
+        return Arrays.stream(classes).map(this::getClassFromName).collect(Collectors.toList());
+    }
+
+    private void generateClasses(List<? extends Class<?>> configClasses, List<Class<?>> beanClasses) {
+        for(var bean : beanClasses){
+            generator.generateBeansProviders(outputDir.toPath(), project.getGroupId(), bean);
+        }
+        generator.generateSpringConfig(outputDir.toPath(), project.getGroupId(), configClasses, applicationPropertiesFile);
+        generator.generateSpringContextProvider(outputDir.toPath(), project.getGroupId(), configClasses);
+    }
+
     private Class<?> getClassFromName(String className) {
         try {
             return Thread.currentThread().getContextClassLoader().loadClass(className);
         } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    private void generateProvidersForBeans(List<Class<?>> allBeanClasses) {
-        for(var bean : allBeanClasses){
-            ProviderGenerator.generateBeansProviders(outputDir.toPath(), project.getGroupId(), bean);
-        }
-    }
-
-    private void generateSpringConfig(List<? extends Class<?>> configClasses, File applicationPropertiesFile) {
-        ProviderGenerator.generateSpringConfig(
-                outputDir.toPath(),
-                project.getGroupId(),
-                configClasses,
-                applicationPropertiesFile
-        );
-    }
-
-    private void generateProviderForSpringContext(List<? extends Class<?>> configClasses) {
-        ProviderGenerator.generateSpringContextProvider(
-                outputDir.toPath(),
-                project.getGroupId(),
-                configClasses
-        );
-    }
-
-    private List<Class<?>> buildSpringContextAndGetBeanClasses(List<? extends Class<?>> configClasses, List<? extends Class<?>> beanClassesFilter, List<String> basePackages, File applicationPropertiesFile) throws MojoExecutionException {
-        var applicationContext = new AnnotationConfigApplicationContext();
-        if(applicationPropertiesFile.exists()) {
-            var resourcePropertyFile = createResourceFromPropertyFile(applicationPropertiesFile);
-            applicationContext.getEnvironment().getPropertySources().addFirst(resourcePropertyFile);
-        }
-        applicationContext.register(configClasses.toArray(new Class[0]));
-        applicationContext.refresh();
-
-        var beansStream = beanClassesFilter.isEmpty()
-                ? Arrays.stream(applicationContext.getBeanDefinitionNames()).map(applicationContext::getBean)
-                : beanClassesFilter.stream().map(applicationContext::getBean);
-
-        return beansStream
-                .map(Object::getClass)
-                .filter( beanClass -> isPartOfLibrary(beanClass, basePackages) && passThroughFilters(beanClass) )
-                .collect(Collectors.toList());
-    }
-
-    private ResourcePropertySource createResourceFromPropertyFile(File applicationPropertiesFile) throws MojoExecutionException {
-        try {
-            return new ResourcePropertySource( new FileSystemResource( applicationPropertiesFile ) );
-        } catch (IOException e) {
-            throw new MojoExecutionException("Application property file could not be opened",e);
-        }
-    }
-
-    private boolean passThroughFilters(Class<?> beanClass) {
-        if (!Modifier.isPublic(beanClass.getModifiers())) return false;
-        if (beanClass.getName().contains(ClassUtils.CGLIB_CLASS_SEPARATOR)) return false;
-        return true;
-    }
-
-    private boolean isPartOfLibrary(Class<?> beanClass, List<String> basePackages) {
-        return basePackages.stream().anyMatch(bPackage -> beanClass.getPackage().toString().contains(bPackage) );
     }
 
     private void compileGeneratedClasses() throws MojoExecutionException {
@@ -168,7 +142,7 @@ public class ProviderGeneratorMojo extends AbstractMojo {
                 ),
                 goal("compile"),
                 configuration(
-                        element(name("generatedSourcesDirectory"), "${project.build.directory}/generated-sources")
+                        element(name("generatedSourcesDirectory"), outputDir.getAbsolutePath())
                 ),
                 executionEnvironment(
                         project,

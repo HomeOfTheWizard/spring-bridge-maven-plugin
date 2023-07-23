@@ -20,7 +20,7 @@ public class ProviderGenerator {
 
     private static final String SPRING_CONFIG_CLASSNAME = "GeneratedSpringConfig";
 
-    public static void generateBeansProviders(Path sourcePath, String packageName, Class<?> beanClass) {
+    public void generateBeansProviders(Path sourcePath, String packageName, Class<?> beanClass) {
         var unitSG = UnitSourceGenerator.create(packageName);
         unitSG.addClass(
             ClassSourceGenerator.create(
@@ -50,7 +50,7 @@ public class ProviderGenerator {
         unitSG.storeToClassPath(sourcePath.toAbsolutePath().toString());
     }
 
-    public static void generateSpringContextProvider(Path sourcePath, String packageName, List<? extends Class<?>> componentClasses){
+    public void generateSpringContextProvider(Path sourcePath, String packageName, List<? extends Class<?>> componentClasses){
         var unitSG = UnitSourceGenerator.create(packageName);
         unitSG.addClass(
                 ClassSourceGenerator.create(TypeDeclarationSourceGenerator.create("SpringContextProvider"))
@@ -71,7 +71,7 @@ public class ProviderGenerator {
         unitSG.storeToClassPath(sourcePath.toAbsolutePath().toString());
     }
 
-    public static void generateSpringConfig(Path sourcePath, String packageName, List<? extends Class<?>> configClasses, File applicationPropertiesFile) {
+    public void generateSpringConfig(Path sourcePath, String packageName, List<? extends Class<?>> configClasses, File applicationPropertiesFile) {
         var unitSG = UnitSourceGenerator.create(packageName);
         unitSG.addClass(
                 ClassSourceGenerator.create(TypeDeclarationSourceGenerator.create(SPRING_CONFIG_CLASSNAME))
@@ -89,7 +89,7 @@ public class ProviderGenerator {
         unitSG.storeToClassPath(sourcePath.toAbsolutePath().toString());
     }
 
-    private static String getSimpleClassesNamesString(List<? extends Class<?>> componentClasses) {
+    private String getSimpleClassesNamesString(List<? extends Class<?>> componentClasses) {
         return componentClasses.stream()
                 .map(Class::getSimpleName)
                 .map(name -> name + ".class")
