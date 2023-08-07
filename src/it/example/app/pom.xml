@@ -17,13 +17,13 @@
 		<plugins>
 			<plugin>
 				<groupId>com.homeofthewizard</groupId>
-				<artifactId>my-friend-maven-plugin</artifactId>
+				<artifactId>meeting-maven-plugin</artifactId>
 				<version>1.0-SNAPSHOT</version>
 				<executions>
 					<execution>
-						<id>sayhi</id>
+						<id>meeting</id>
 						<goals>
-							<goal>sayhi</goal>
+							<goal>meeting</goal>
 						</goals>
 					</execution>
 				</executions>
