@@ -97,11 +97,16 @@ The spring-bridge plugin is configurer to run during the same `COMPILE` right af
 This is necessary for classpath sharing. The plugin needs to access to your classpath to generate the code that it needs.  
 Then the plugin will run again the compilation of the generated code.  
 
-Lastly the classes will be scanned and indexed by the sisu maven plugin.  
-See again [here](https://maven.apache.org/maven-jsr330.html) for the `sisu-maven-plugin` usage.   
-  
-Even though sisu is based on Guice and in guice API we can create custom bindings, maven unfortunately does not expose the Api to plugins. The documentation is [wrong](https://github.com/eclipse/sisu.plexus/issues/35).    
+Lastly the classes will be scanned and indexed by the sisu component.
+
+# Does that sound too much of complication ?
+Well there is another way!
+SISU is based on Guice and in guice API we can create custom bindings to be used in the maven DI system. But maven unfortunately does not expose the Api to plugins by default.  
+See the documentation [here](https://eclipse-sisu.github.io/sisu-project/plexus/index.html#custombinding).    
   
 So we have two options to bypass this:  
 1. This plugin,  
-2. To build an extension, like demonstrated [here](https://github.com/scratches/plugin-demo), working POC [here](https://github.com/HomeOfTheWizard/spring-bridge-maven-extension).
+2. Use an extension to activate GuiceAPI, and use the following library to directly inject your beans in sisu, [here](https://github.com/HomeOfTheWizard/spring-bridge-maven).
+
+Activating the Guice API to all maven plugins via a core extension may be non practical, or not possible at all for some projects.
+A [discussion](https://issues.apache.org/jira/browse/MNG-7921) is ongoing to tackle this problem.
