@@ -1,7 +1,8 @@
 ﻿# Spring Bridge Maven Plugin
 A plugin that helps other plugins to use spring libraries.  
 Maven uses [Sisu](https://eclipse.github.io/sisu.inject/) as dependency injection mechanism and this plugin allows you to have a bridge between the two.  
-You just add this plugin in your project, configure it, and you will be able to simply inject your beans in your mojo using `@Inject` and start using them.   
+You just add this plugin in your project's pom.xml, configure it, and you will be able to simply inject your beans in your mojo using `@Inject` and start using them.   
+This plugin will be executed during the build of your own plugin, in order to generate the Spring Beans you need in your project. So you plugin will be packaged with the bean classes you require. See the [below](#how-it-works-under-the-hood--) section for more details.
   
 # How to use it ?
 You need to add this plugin in the pom.xml of your 'under development' plugin. Like so:  
@@ -91,22 +92,34 @@ JSR330 is made available in maven with the arrival of sisu.
 Maven uses Sisu since version 3.1.0, so this plugin works from Maven 3.1.x and on. It requires Java 11 +.    
 See this [doc](https://maven.apache.org/maven-jsr330.html) for more details on how to use JSR330 in maven plugins and about maven's history of DI mechanism.   
 
-The plugin allows injecting the beans via generating code of JSR330 providers.   
+The plugin allows injecting the spring beans by generating code of a JSR330 provider for each bean.   
 The sources of your plugin will be compiled on the `COMPILE` phase by the maven compile plugin.  
-The spring-bridge plugin is configurer to run during the same `COMPILE` right after the compilation of your code,  
-This is necessary for classpath sharing. The plugin needs to access to your classpath to generate the code that it needs.  
-Then the plugin will run again the compilation of the generated code.  
+The spring-bridge plugin is configurer to run during the same `COMPILE` phase right after the compilation of your code.  
+This is necessary for classpath sharing. In case the spring library or configuration you want to use is not coming only from another maven dependency, but also from your project's codebase, then spring-bridge-maven-plugin needs to access to your classpath in order to generate the necessary spring context.  
+Then the plugin will run again the compilation of the whole project with the generated code.  
 
 Lastly the classes will be scanned and indexed by the sisu component.
 
-# Does that sound too much of complication ?
-Well there is another way!
-SISU is based on Guice and in guice API we can create custom bindings to be used in the maven DI system. But maven unfortunately does not expose the Api to plugins by default.  
+# Alternatives ?
+There is another way, that does not require compiling code multiple times, which is faster, but have other disadvantages. So it is up to you to judge which one fits better your requirements.  
+Maven-Sisu is based on Google Guice and using Guice API we can create custom bindings to be used in the maven DI system. But maven core unfortunately does not expose the Api to plugins by default.  
 See the documentation [here](https://eclipse-sisu.github.io/sisu-project/plexus/index.html#custombinding).    
   
 So we have two options to bypass this:  
 1. This plugin,  
-2. Use an extension to activate GuiceAPI, and use the following library to directly inject your beans in sisu, [here](https://github.com/HomeOfTheWizard/spring-bridge-maven).
+2. Use an extension to activate GuiceAPI, and use the following library to directly create your beans and inject them into sisu, [here](https://github.com/HomeOfTheWizard/spring-bridge-maven).
 
 Activating the Guice API to all maven plugins via a core extension may be non practical, or not possible at all for some projects.
 A [discussion](https://issues.apache.org/jira/browse/MNG-7921) is ongoing to tackle this problem.
+
+# Building
+
+This build uses standard Maven build commands but assumes that the following are installed JDJ  17 or higher.
+
+# Contributing
+
+* Fork it 
+* Create your feature branch (git checkout -b my-new-feature)
+* Commit your changes (git commit -am 'Add some feature')
+* Push to the branch (git push origin my-new-feature)
+* Create new Pull Request
