@@ -12,7 +12,7 @@ You need to add this plugin in the pom.xml of your 'under development' plugin. L
     <dependency>
         <groupId>com.homeofthewizard</groupId>
         <artifactId>spring-bridge-maven-plugin</artifactId>
-        <version>1.0-SNAPSHOT</version>
+        <version>1.0.0-alpha</version>
     </dependency>
     
     <!-- some spring library I want to use in my plugin's mojo -->
@@ -31,7 +31,7 @@ You need to add this plugin in the pom.xml of your 'under development' plugin. L
         <plugin>
             <groupId>com.homeofthewizard</groupId>
             <artifactId>spring-bridge-maven-plugin</artifactId>
-            <version>1.0-SNAPSHOT</version>
+            <version>1.0.0-alpha</version>
             <executions>
                 <execution>
                     <id>generate</id>

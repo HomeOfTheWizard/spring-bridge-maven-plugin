@@ -5,7 +5,7 @@
 
     <groupId>com.homeofthewizard</groupId>
     <artifactId>spring-bridge-maven-plugin-test</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0.0-alpha</version>
     <packaging>jar</packaging>
     <name>Test ProviderGeneratorMojo</name>
 
@@ -23,7 +23,7 @@
             <plugin>
                 <groupId>com.homeofthewizard</groupId>
                 <artifactId>spring-bridge-maven-plugin</artifactId>
-                <version>1.0-SNAPSHOT</version>
+                <version>1.0.0-alpha</version>
                 <configuration>
                     <!-- Specify where this pom will output files -->
                     <outputDir>target/test-harness/project-to-test</outputDir>
