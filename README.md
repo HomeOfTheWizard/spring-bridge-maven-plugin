@@ -92,11 +92,12 @@ JSR330 is made available in maven with the arrival of sisu.
 Maven uses Sisu since version 3.1.0, so this plugin works from Maven 3.1.x and on. It requires Java 11 +.    
 See this [doc](https://maven.apache.org/maven-jsr330.html) for more details on how to use JSR330 in maven plugins and about maven's history of DI mechanism.   
 
-The plugin allows injecting the spring beans by generating code of a JSR330 provider for each bean.   
-The sources of your plugin will be compiled on the `COMPILE` phase by the maven compile plugin.  
-The spring-bridge plugin is configurer to run during the same `COMPILE` phase right after the compilation of your code.  
-This is necessary for classpath sharing. In case the spring library or configuration you want to use is not coming only from another maven dependency, but also from your project's codebase, then spring-bridge-maven-plugin needs to access to your classpath in order to generate the necessary spring context.  
-Then the plugin will run again the compilation of the whole project with the generated code.  
+The plugin allows injecting the spring beans into your Mojo by generating code of a JSR330 provider for each bean.   
+It works in 3 steps:  
+1. The sources of your plugin will be compiled on the `COMPILE` phase by the maven compile plugin.  
+2. The spring-bridge plugin is configurer to run during the same `COMPILE` phase right after the compilation of your code.  
+This is necessary for classpath sharing. In case the spring library or configuration you want to use is not coming from another maven dependency, but from your project's codebase, then spring-bridge-maven-plugin needs to access to your classpath in order to generate the necessary spring context. After running the spring container and construct the beans you need, it generates source code of JSR330 Providers for them, so they will be picked by sisu.  
+3. Then the plugin will run again the compilation of the whole project with the generated code.  
 
 Lastly the classes will be scanned and indexed by the sisu component.
 
