@@ -1,12 +1,16 @@
 package com.homeofthewizard;
 
 import org.apache.maven.artifact.DependencyResolutionRequiredException;
+import org.apache.maven.cli.MavenCli;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.BuildPluginManager;
 import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugins.annotations.*;
+import org.apache.maven.plugins.annotations.LifecyclePhase;
+import org.apache.maven.plugins.annotations.Mojo;
+import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
 
 import javax.inject.Inject;
@@ -18,8 +22,6 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import static org.twdata.maven.mojoexecutor.MojoExecutor.*;
 
 @Mojo( name = "generate", defaultPhase = LifecyclePhase.COMPILE, requiresDependencyResolution = ResolutionScope.TEST)
 public class ProviderGeneratorMojo extends AbstractMojo {
@@ -134,21 +136,9 @@ public class ProviderGeneratorMojo extends AbstractMojo {
     }
 
     private void compileGeneratedClasses() throws MojoExecutionException {
-        executeMojo(
-                plugin(
-                        groupId("org.apache.maven.plugins"),
-                        artifactId("maven-compiler-plugin"),
-                        version("3.3")
-                ),
-                goal("compile"),
-                configuration(
-                        element(name("generatedSourcesDirectory"), outputDir.getAbsolutePath())
-                ),
-                executionEnvironment(
-                        project,
-                        session,
-                        pluginManager
-                )
-        );
+        getLog().info("compiling project via mvn embedder");
+        MavenCli cli = new MavenCli();
+        cli.doMain(new String[] {"clean","compile"}, project.getBasedir().getAbsolutePath(), System.out, System.err);
+        getLog().info("compiling project ended");
     }
 }
