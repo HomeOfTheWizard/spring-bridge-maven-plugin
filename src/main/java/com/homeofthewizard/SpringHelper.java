@@ -1,9 +1,12 @@
 package com.homeofthewizard;
 
+import jakarta.annotation.Nonnull;
 import org.apache.maven.plugin.MojoExecutionException;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.support.ResourcePropertySource;
+import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 
 import java.io.File;
@@ -11,11 +14,28 @@ import java.io.IOException;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class SpringHelper {
 
-    public List<Class<?>> buildSpringContextAndGetBeanClasses(List<? extends Class<?>> configClasses, List<? extends Class<?>> beanClassesFilter, List<String> basePackages, File applicationPropertiesFile) throws MojoExecutionException {
+    public List<? extends Class<?>> buildSpringContextAndGetBeanClasses(@Nonnull List<? extends Class<?>> configClasses, @Nonnull List<? extends Class<?>> beanClassesFilter, @Nonnull List<String> basePackages, @Nonnull File applicationPropertiesFile) throws MojoExecutionException {
+        Assert.notEmpty(basePackages, """
+                Base package name cannot be left empty.
+                Please provide a package name to be used filtering the beans.
+                This is necessary for not creating unnecessary code for objects used only internally in spring context.
+                \s""");
+
+        var applicationContext = buildSpringContext(configClasses, applicationPropertiesFile);
+
+        return Arrays.stream(applicationContext.getBeanDefinitionNames())
+                .map(applicationContext::getBean)
+                .map(Object::getClass)
+                .filter(beanClass -> beanClassesFilter.isEmpty() || beanClassesFilter.contains(beanClass))
+                .filter(beanClass -> isPublicBean(beanClass))
+                .filter(beanClass -> isPartOfLibrary(beanClass, basePackages))
+                .toList();
+    }
+
+    private ApplicationContext buildSpringContext(List<? extends Class<?>> configClasses, File applicationPropertiesFile) throws MojoExecutionException {
         var applicationContext = new AnnotationConfigApplicationContext();
         if(applicationPropertiesFile.exists()) {
             var resourcePropertyFile = createResourceFromPropertyFile(applicationPropertiesFile);
@@ -23,15 +43,7 @@ public class SpringHelper {
         }
         applicationContext.register(configClasses.toArray(new Class[0]));
         applicationContext.refresh();
-
-        var beansStream = beanClassesFilter.isEmpty()
-                ? Arrays.stream(applicationContext.getBeanDefinitionNames()).map(applicationContext::getBean)
-                : beanClassesFilter.stream().map(applicationContext::getBean);
-
-        return beansStream
-                .map(Object::getClass)
-                .filter( beanClass -> isPartOfLibrary(beanClass, basePackages) && passThroughFilters(beanClass) )
-                .collect(Collectors.toList());
+        return applicationContext;
     }
 
     private ResourcePropertySource createResourceFromPropertyFile(File applicationPropertiesFile) throws MojoExecutionException {
@@ -42,14 +54,14 @@ public class SpringHelper {
         }
     }
 
-    private boolean passThroughFilters(Class<?> beanClass) {
-        if (!Modifier.isPublic(beanClass.getModifiers())) return false;
-        if (beanClass.getName().contains(ClassUtils.CGLIB_CLASS_SEPARATOR)) return false;
+    private boolean isPublicBean(Class<?> beanClass) {
+        if(!Modifier.isPublic(beanClass.getModifiers())) return false;
+        if(beanClass.getName().contains(ClassUtils.CGLIB_CLASS_SEPARATOR)) return false;
         return true;
     }
 
     private boolean isPartOfLibrary(Class<?> beanClass, List<String> basePackages) {
-        return basePackages.stream().anyMatch(bPackage -> beanClass.getPackage().toString().contains(bPackage) );
+        return basePackages.stream().anyMatch(bPackage -> beanClass.getPackage().toString().contains(bPackage));
     }
 
 }

@@ -1,4 +1,4 @@
-﻿[![Maven Central](https://img.shields.io/maven-central/v/org.apache.maven/apache-maven.svg?label=Maven%20Central)](https://search.maven.org/artifact/com.homeofthewizard/spring-bridge-maven-plugin)
+﻿[![Maven Central](https://img.shields.io/maven-central/v/com.homeofthewizard/spring-bridge-maven-plugin?color=green)](https://search.maven.org/artifact/com.homeofthewizard/spring-bridge-maven-plugin)
 [![Reproducible Builds](https://img.shields.io/badge/Reproducible_Builds-ok-green?labelColor=blue)](https://github.com/jvm-repo-rebuild/reproducible-central/blob/master/content/org/apache/maven/maven/README.md)
 ![CI Passing](https://github.com/homeofthewizard/spring-bridge-maven-plugin/actions/workflows/maven-build.yml/badge.svg)
 

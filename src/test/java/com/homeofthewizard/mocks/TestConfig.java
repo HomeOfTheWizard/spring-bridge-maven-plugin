@@ -10,4 +10,9 @@ public class TestConfig {
     public TestPojo pojo() {
         return new TestPojo();
     }
+
+    @Bean
+    public TestFilterPojo testPojo() {
+        return new TestFilterPojo();
+    }
 }

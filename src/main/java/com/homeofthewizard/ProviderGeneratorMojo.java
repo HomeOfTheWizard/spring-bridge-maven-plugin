@@ -79,9 +79,9 @@ public class ProviderGeneratorMojo extends AbstractMojo {
 
         var basePackages = getSpringLibsBasePackages();
         var configClasses = parseClassNameArray(contextConfigClasses);
-        var beanClassesFilter = parseClassNameArray(componentClassesFilter);
+        var beanClassesToFilter = parseClassNameArray(componentClassesFilter);
 
-        var beanClasses = springHelper.buildSpringContextAndGetBeanClasses(configClasses, beanClassesFilter, basePackages, applicationPropertiesFile);
+        var beanClasses = springHelper.buildSpringContextAndGetBeanClasses(configClasses, beanClassesToFilter, basePackages, applicationPropertiesFile);
 
         generateClasses(configClasses, beanClasses);
         compileGeneratedClasses();
@@ -117,20 +117,20 @@ public class ProviderGeneratorMojo extends AbstractMojo {
         return Arrays.stream(classes).map(this::getClassFromName).collect(Collectors.toList());
     }
 
-    private void generateClasses(List<? extends Class<?>> configClasses, List<Class<?>> beanClasses) {
-        for(var bean : beanClasses){
-            generator.generateBeansProviders(outputDir.toPath(), project.getGroupId(), bean);
-        }
-        generator.generateSpringConfig(outputDir.toPath(), project.getGroupId(), configClasses, applicationPropertiesFile);
-        generator.generateSpringContextProvider(outputDir.toPath(), project.getGroupId(), configClasses);
-    }
-
     private Class<?> getClassFromName(String className) {
         try {
             return Thread.currentThread().getContextClassLoader().loadClass(className);
         } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private void generateClasses(List<? extends Class<?>> configClasses, List<? extends Class<?>> beanClasses) {
+        for(var bean : beanClasses){
+            generator.generateBeansProviders(outputDir.toPath(), project.getGroupId(), bean);
+        }
+        generator.generateSpringConfig(outputDir.toPath(), project.getGroupId(), configClasses, applicationPropertiesFile);
+        generator.generateSpringContextProvider(outputDir.toPath(), project.getGroupId(), configClasses);
     }
 
     private void compileGeneratedClasses() throws MojoExecutionException {
