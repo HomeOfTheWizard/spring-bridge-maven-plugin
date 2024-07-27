@@ -69,10 +69,9 @@ This is because your plugin will also needs some dependencies to run spring, and
 The plugin section allows this project to generate code for you, that will be picked up by maven injection mechanism.  
 This will be done when you build your plugin.
 
-Then in the `<configuration>` section we tell what to do with this library (spring configuration class, and application properties to use, ect..).  
-This is an example that shows the minimum required configuration.  
-We only provide the spring ContextConfiguration class that creates the beans we want from the imported library `spring-some-lib`.  
-An example with full configuration can be found in the integration tests [here](./src/it/example/plugin/pom.xml)
+Then in the `<configuration>` section we tell what to do with this library (spring configuration class to load, application properties to use, ect..).  
+This is an example that shows the minimum required configuration, providing only the spring ContextConfiguration class that creates the beans we want from the imported library `spring-some-lib`.  
+An example with full configuration can be found in [here](configuration)
 
 #### This is it! you are ready to go :rocket:
 You can now use the beans created directly in your Mojo.

@@ -28,5 +28,4 @@ public class MeetingMojo extends AbstractMojo {
         diner.eat();
 
     }
-
 }

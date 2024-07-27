@@ -82,11 +82,12 @@
                         <contextConfigClass>com.homeofthewizard.friends.MySpringConfiguration</contextConfigClass>
                         <contextConfigClass>com.homeofthewizard.dinerlib.DinerSpringConfiguration</contextConfigClass>
                     </contextConfigClasses>
-                    <!--                    <applicationPropertiesFile>${project.basedir}/src/main/resources/application.properties</applicationPropertiesFile>-->
-                    <!--                    <outputDir>${project.build.directory}/generated-sources</outputDir>-->
-                    <!--                    <componentClassesFilter>-->
-                    <!--                        <componentClassesFilter>com.homeofthewizard.friends.MyHelloer</componentClassesFilter>-->
-                    <!--                    </componentClassesFilter>-->
+                    <applicationPropertiesFile>${project.basedir}/src/main/resources/application.properties</applicationPropertiesFile>
+                    <outputDir>${project.build.directory}/generated-spring-sources</outputDir>
+                    <componentClassesFilter>
+                        <componentClassesFilter>com.homeofthewizard.friends.MyFriend</componentClassesFilter>
+                        <componentClassesFilter>com.homeofthewizard.dinerlib.Pizza</componentClassesFilter>
+                    </componentClassesFilter>
                 </configuration>
             </plugin>
         </plugins>
