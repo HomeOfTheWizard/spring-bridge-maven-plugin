@@ -2,6 +2,7 @@ package com.homeofthewizard;
 
 import jakarta.annotation.Nonnull;
 import org.apache.maven.plugin.MojoExecutionException;
+import org.springframework.beans.factory.config.SingletonBeanRegistry;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.core.io.FileSystemResource;
@@ -12,7 +13,9 @@ import org.springframework.util.ClassUtils;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 public class SpringHelper {
@@ -26,13 +29,16 @@ public class SpringHelper {
 
         var applicationContext = buildSpringContext(configClasses, applicationPropertiesFile);
 
-        return Arrays.stream(applicationContext.getBeanDefinitionNames())
-                .map(applicationContext::getBean)
-                .map(Object::getClass)
-                .filter(beanClass -> beanClassesFilter.isEmpty() || beanClassesFilter.contains(beanClass))
-                .filter(beanClass -> isPublicBean(beanClass))
-                .filter(beanClass -> isPartOfLibrary(beanClass, basePackages))
-                .toList();
+        if(beanClassesFilter.isEmpty()) {
+            return Arrays.stream(applicationContext.getBeanDefinitionNames())
+                    .map(applicationContext::getBean)
+                    .map(Object::getClass)
+                    .filter(this::isPublicBean)
+                    .filter(beanClass -> isPartOfLibrary(beanClass, basePackages))
+                    .toList();
+        }else{
+            return beanClassesFilter;
+        }
     }
 
     private ApplicationContext buildSpringContext(List<? extends Class<?>> configClasses, File applicationPropertiesFile) throws MojoExecutionException {
